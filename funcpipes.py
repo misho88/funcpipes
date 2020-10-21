@@ -344,6 +344,9 @@ class Pipe:
             return self.func(*(args[i] for i in idx + rest), **kwargs)
         return Pipe(closure)
 
+    def T(self, *indices):
+        return self.transpose(*indices)
+
     @cached_property
     def flip(self):
         """swap the first two argument of the function
