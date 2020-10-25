@@ -330,6 +330,8 @@ class Pipe:
         2.0
         >>> Pipe(lambda n, d: n / d).transpose(1)(1, 2)
         2.0
+        >>> div_by_2 = Pipe(lambda n, d: n / d).T(1)[2]; div_by_2(1)
+        0.5
         """
         if len(set(indices)) < len(indices):
             raise ValueError('some indices are repeated')
@@ -339,9 +341,26 @@ class Pipe:
             n = len(args)
             if not all(-n <= i < n for i in indices):
                 raise IndexError('argument index out of range')
-            idx = tuple(i + n if i < 0 else i for i in indices)
-            rest = tuple(i for i in range(n) if i not in idx)
-            return self.func(*(args[i] for i in idx + rest), **kwargs)
+
+            mapping = { i: j % n for i, j in enumerate(indices) }
+            if len(set(mapping.values())) < len(mapping):
+                raise ValueError('some indices are repeated')
+
+            j = 0
+            targs = {}
+            for i, arg in enumerate(args):
+                while j in targs:
+                    j += 1
+                if i in mapping:
+                    targs[mapping[i]] = arg
+                else:
+                    targs[j] = arg
+            for i, j in enumerate(sorted(targs.keys())):
+                if i != j:
+                    raise TypeError(f'argument bound for index {i} is missing')
+            args = (targs[i] for i in range(len(targs)))
+            return self.func(*args, **kwargs)
+
         return Pipe(closure)
 
     def T(self, *indices):
