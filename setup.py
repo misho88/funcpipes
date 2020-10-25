@@ -13,7 +13,7 @@ setuptools.setup(
     description='Pipes - Functions for Building Data Pipelines',
     long_description=long_description,
     long_description_content_type='text/plain',
-    url='https://github.com/misho88/pipes',
+    url='https://github.com/misho88/funcpipes',
     packages=setuptools.find_packages(),
     python_requires='>=3.6',
     py_modules=['funcpipes']
