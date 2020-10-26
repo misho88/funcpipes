@@ -550,12 +550,40 @@ get.oe = get.partial(('stdout', 'stderr'))
 
 
 class To:
+    """convenient way to create pipes
+
+    This should not be instantiated by the user directly, but rather
+    used through its only instance "to":
+
+    >>> 'hello' | to(print)
+    hello
+    """
     def __call__(self, arg):
+        r"""when called, to(), where to = To(), acts like Pipe()
+
+        >>> ('hello', 'world') | -to(print).partial(sep='\n')
+        hello
+        world
+        """
         return Pipe(arg)
 
     def __getattr__(self, attr):
-        def closure(obj):
-            return getattr(obj, attr)()
+        r"""to.attr(), where to = To(), allows calling methods
+
+        Note the positional arguments are rearranged such that the object is
+        last, i.e., to.split('X', 'aXb') is equivalent to 'aXb'.split('X') so
+        that partials work like expected
+
+        >>> 'hello world' | to.split
+        ['hello', 'world']
+        >>> 'helloXworld' | to.split['X']
+        ['hello', 'world']
+        >>> b'helloXworld' | to.split[b'X']
+        [b'hello', b'world']
+        """
+        def closure(*args, **kwargs):
+            *args, obj = args
+            return getattr(obj, attr)(*args, **kwargs)
         return Pipe(closure)
 
 
