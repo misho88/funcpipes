@@ -213,6 +213,7 @@ __all__ = 'Pipe', 'pipe', 'get', 'to', 'now', 'Arguments', 'pipify'
 from functools import partial, cached_property, wraps
 from contextlib import ExitStack
 from types import ModuleType
+from collections.abc import Iterable, Collection, Mapping
 
 
 class Arguments:
@@ -589,7 +590,18 @@ class To:
 
 to = To()
 pipe = Pipe()
-now = to(tuple)
+
+@Pipe
+def now(obj):
+    if isinstance(obj, (str, bytes, bytearray)):
+        return obj
+    if isinstance(obj, Mapping):
+        return type(obj)({ k: now(v) for k, v in obj.items() })
+    if isinstance(obj, Collection) and not isinstance(obj, range):
+        return type(obj)(now(item) for item in obj)
+    if isinstance(obj, Iterable):
+        return now(tuple(obj))
+    return obj
 
 
 class NameSpace:
