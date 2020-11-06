@@ -545,11 +545,6 @@ def get(name, object_or_default, *objects):
     return tuple(get(n, object_or_default, *objects) for n in name)
 
 
-get.o = get.stdout
-get.e = get.stderr
-get.oe = get.partial(('stdout', 'stderr'))
-
-
 class To:
     """convenient way to create pipes
 
