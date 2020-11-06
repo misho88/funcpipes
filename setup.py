@@ -7,7 +7,7 @@ long_description = funcpipes.__doc__
 
 setuptools.setup(
     name='funcpipes',
-    version='0.0.1',
+    version='0.1.0',
     author='Mihail Georgiev',
     author_email='misho88@gmail.com',
     description='Pipes - Functions for Building Data Pipelines',
