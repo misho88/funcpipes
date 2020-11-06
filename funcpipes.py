@@ -264,6 +264,27 @@ class Arguments:
         comma = ', ' if kwargs else ''
         return f'{__class__.__qualname__}({args}{comma}{kwargs})'
 
+    def apply(self, func):
+        return func(*self.args, **self.kwargs)
+
+    def __call__(self, func):
+        return self.apply(func)
+
+    def partial(self, func):
+        return partial(func, *self.args, **self.kwargs)
+
+    def __getitem__(self, func):
+        return self.partial(func)
+
+    @staticmethod
+    def get(*args, **kwargs):
+        for arg in args:
+            if isinstance(arg, Arguments):
+                if len(args) != 1 or kwargs:
+                    raise RuntimeError(f'{arg} must be passed on its own')
+                return arg
+        return Arguments(*args, **kwargs)
+
 
 class Pipe:
     def __init__(self, func=Arguments):
@@ -283,12 +304,7 @@ class Pipe:
         >>> Pipe(print).apply(1, 2.0, 3j)
         1 2.0 3j
         """
-        for arg in args:
-            if isinstance(arg, Arguments):
-                if len(args) != 1 or kwargs:
-                    raise RuntimeError(f'{arg} must be passed on its own')
-                return self.func(*arg.args, **arg.kwargs)
-        return self.func(*args, **kwargs)
+        return Arguments.get(*args, **kwargs).apply(self.func)
 
     @cached_property
     def star(self):
@@ -316,7 +332,7 @@ class Pipe:
         >>> Pipe(print).partial(sep=',')(1, 2, 3)
         1,2,3
         """
-        return Pipe(partial(self.func, *args, **kwargs))
+        return Pipe(Arguments.get(*args, **kwargs).partial(self.func))
 
     def transpose(self, *indices):
         """rearrange (some of) the arguments to a function
