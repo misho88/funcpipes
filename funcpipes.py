@@ -541,6 +541,9 @@ class Pipe:
     def __repr__(self):
         return f'{__class__.__qualname__}({self.func})'
 
+    def __iter__(self):
+        raise TypeError(f"'{__class__.__qualname__}' object is not iterable")
+
 
 class GetAttr(Pipe):
     def __getattr__(self, attr):
