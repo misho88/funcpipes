@@ -207,7 +207,12 @@ exiting 3
 6 9 12 15
 """
 
-__all__ = 'Pipe', 'pipe', 'get', 'to', 'now', 'Arguments', 'pipify'
+__all__ = (
+    'Pipe', 'Arguments',
+    'pipe', 'get', 'to', 'now',
+    'repeat', 'until', 'until_result', 'until_exception', 'until_condition',
+    'pipify',
+)
 
 
 from functools import partial, cached_property, wraps
@@ -616,6 +621,67 @@ def now(obj):
     if isinstance(obj, Iterable):
         return now(tuple(obj))
     return obj
+
+
+@Pipe
+def repeat(argument=None):
+    """like itertools.repeat, but the default item is Arguments()"""
+    from itertools import repeat
+    return repeat(argument if argument is not None else Arguments())
+
+
+@Pipe
+def until_condition(condition, iterable):
+    """loop until condition is met"""
+    for item in iterable:
+        if condition(item):
+            return
+        yield item
+
+
+@Pipe
+def until_result(result, iterable):
+    """loop until a certain result """
+    return until_condition(lambda item: item == result, iterable)
+
+
+@Pipe
+def until_exception(exception_type, iterable):
+    try:
+        yield from iterable
+    except exception_type:
+        pass
+
+
+@Pipe
+def until(event, iterable):
+    """one of until_condition, until_result or until_exception
+
+    This covers three common cases. One is to keep going until a result:
+    >>> from itertools import count
+    >>> count() | until[5] | now
+    (0, 1, 2, 3, 4)
+
+    Another is until an arbitrary condition (think if-break inside a loop):
+    >>> count() | until[lambda x: x == 5] | now
+    (0, 1, 2, 3, 4)
+
+    Finally, until an exception occurs (think contextlib.suppress):
+    >>> def f():
+    ...     yield 1
+    ...     yield 2
+    ...     raise EOFError
+    ...
+    >>> f() | until[EOFError] | now
+    (1, 2)
+
+    """
+    if isinstance(event, type) and issubclass(event, Exception):
+        return until_exception(event, iterable)
+    elif callable(event):
+        return until_condition(event, iterable)
+    else:
+        return until_result(event, iterable)
 
 
 class NameSpace:
