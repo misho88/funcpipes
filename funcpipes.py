@@ -209,7 +209,7 @@ exiting 3
 
 __all__ = (
     'Pipe', 'Arguments',
-    'pipe', 'get', 'to', 'now',
+    'pipe', 'get', 'to', 'discard', 'collect', 'now',
     'repeat', 'until', 'until_result', 'until_exception', 'until_condition',
     'pipify',
 )
@@ -610,17 +610,40 @@ class To:
 to = To()
 pipe = Pipe()
 
+
 @Pipe
-def now(obj):
+def discard(obj):
+    if isinstance(obj, (str, bytes, bytearray)):
+        return
+    if isinstance(obj, Mapping):
+        for v in obj.values():
+            discard(v)
+        return
+    if isinstance(obj, (Collection, Iterable)) and not isinstance(obj, range):
+        for item in obj:
+            discard(item)
+        return
+    return
+
+
+@Pipe
+def collect(obj):
     if isinstance(obj, (str, bytes, bytearray)):
         return obj
     if isinstance(obj, Mapping):
-        return type(obj)({ k: now(v) for k, v in obj.items() })
+        return type(obj)({ k: collect(v) for k, v in obj.items() })
     if isinstance(obj, Collection) and not isinstance(obj, range):
-        return type(obj)(now(item) for item in obj)
+        return type(obj)(collect(item) for item in obj)
     if isinstance(obj, Iterable):
-        return now(tuple(obj))
+        return collect(tuple(obj))
     return obj
+
+
+@Pipe
+def now(obj):
+    return collect(obj)
+now.collect = collect  # noqa: E305
+now.discard = discard  # noqa: E305
 
 
 @Pipe
