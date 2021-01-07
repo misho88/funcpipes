@@ -210,7 +210,8 @@ exiting 3
 __all__ = (
     'Pipe', 'Arguments',
     'pipe', 'get', 'to', 'discard', 'collect', 'now',
-    'repeat', 'until', 'until_result', 'until_exception', 'until_condition',
+    'repeat', 'ignore',
+    'until', 'until_result', 'until_exception', 'until_condition',
     'pipify',
 )
 
@@ -219,6 +220,7 @@ from functools import partial, cached_property, wraps
 from contextlib import ExitStack
 from types import ModuleType
 from collections.abc import Iterable, Collection, Mapping
+import itertools
 
 
 class Arguments:
@@ -546,9 +548,27 @@ class Pipe:
     def __repr__(self):
         return f'{__class__.__qualname__}({self.func})'
 
+    def __str__(self):
+        for attr in '__qualname__', '__name__':
+            if hasattr(self.func, attr):
+                return getattr(self.func, attr)
+        return str(self.func)
+
     def __iter__(self):
         raise TypeError(f"'{__class__.__qualname__}' object is not iterable")
 
+    def describe(self, fallback=str):
+        if isinstance(self.func, Pipe):
+            return f'[ {self.func.describe()} ]'
+        qualname = getattr(self.func, '__qualname__', '')
+        if 'Pipe.chain' in qualname and qualname.endswith('closure'):
+            funcs = tuple(cell.cell_contents for cell in self.func.__closure__)
+            return '->'.join(
+                func.describe() if hasattr(func, 'describe') else fallback(func)
+                for func in reversed(funcs)
+            )
+        else:
+            return fallback(self)
 
 class GetAttr(Pipe):
     def __getattr__(self, attr):
@@ -609,6 +629,7 @@ class To:
 
 to = To()
 pipe = Pipe()
+repeat = itertools.repeat(Arguments())
 
 
 @Pipe
@@ -647,13 +668,6 @@ now.discard = discard  # noqa: E305
 
 
 @Pipe
-def repeat(argument=None):
-    """like itertools.repeat, but the default item is Arguments()"""
-    from itertools import repeat
-    return repeat(argument if argument is not None else Arguments())
-
-
-@Pipe
 def until_condition(condition, iterable):
     """loop until condition is met"""
     for item in iterable:
@@ -669,15 +683,21 @@ def until_result(result, iterable):
 
 
 @Pipe
-def until_exception(exception_type, iterable):
+def until_exception(*args):
     try:
-        yield from iterable
-    except exception_type:
+        yield from args[-1]
+    except args[:-1]:
         pass
 
 
 @Pipe
-def until(event, iterable):
+def ignore(*args):
+    while True:
+        yield from until_exception(*args)
+
+
+@Pipe
+def until(*args):
     """one of until_condition, until_result or until_exception
 
     This covers three common cases. One is to keep going until a result:
@@ -699,12 +719,20 @@ def until(event, iterable):
     (1, 2)
 
     """
-    if isinstance(event, type) and issubclass(event, Exception):
-        return until_exception(event, iterable)
-    elif callable(event):
-        return until_condition(event, iterable)
+    *events, iterable = args
+    if len(events) == 1:
+        event, = events
+        if isinstance(event, type) and issubclass(event, BaseException):
+            func = until_exception
+        elif callable(event):
+            func = until_condition
+        else:
+            func = until_result
     else:
-        return until_result(event, iterable)
+        if not all(issubclass(e, BaseException) for e in events):
+            raise ValueError('with multiple arguments, all arguments must be exceptions')
+        func = until_exception
+    return func(*args)
 
 
 class NameSpace:
