@@ -223,6 +223,11 @@ from collections.abc import Iterable, Collection, Mapping
 import itertools
 
 
+def indent(text):
+    import textwrap
+    return textwrap.indent(text, '\t')
+
+
 class Arguments:
     """groups arguments together
 
@@ -260,16 +265,24 @@ class Arguments:
         yield self.args
         yield self.kwargs
 
-    def __repr__(self):
+    def __str__(self):
         """string representation
 
-        >>> Arguments(1, 2, a=3, b=4)
-        Arguments(1, 2, a=3, b=4)
+        >>> str(Arguments(1, 2, a=3, b=4))
+        '1, 2, a=3, b=4'
         """
         args = ', '.join(repr(arg) for arg in self.args)
         kwargs = ', '.join(f'{kw}={repr(arg)}' for kw, arg in self.kwargs.items())
-        comma = ', ' if kwargs else ''
-        return f'{__class__.__qualname__}({args}{comma}{kwargs})'
+        comma = ', ' if args and kwargs else ''
+        return f'{args}{comma}{kwargs}'
+
+    def __repr__(self):
+        """string representation
+
+        >>> repr(Arguments(1, 2, a=3, b=4))
+        'Arguments(1, 2, a=3, b=4)'
+        """
+        return f'{__class__.__qualname__}({str(self)})'
 
     def apply(self, func):
         return func(*self.args, **self.kwargs)
@@ -294,14 +307,28 @@ class Arguments:
 
 
 class Pipe:
-    def __init__(self, func=Arguments):
+    def __init__(self, func=Arguments, name=None, doc=None):
         if not callable(func):
             raise ValueError(f'{repr(func)} is not callable')
-        self.__func = func
+        self.__func__ = func
+        self.__name__ = name if name is not None else getattr(func, '__name__', None)
+        self.__doc__ = doc if doc is not None else getattr(func, '__doc__', None)
+
+    @classmethod
+    def as_pipe(cls, func):
+        return func if isinstance(func, cls) else cls(func)
 
     @property
     def func(self):
-        return self.__func
+        return self.__func__
+
+    @property
+    def name(self):
+        return self.__name__
+
+    @property
+    def doc(self):
+        return self.__doc__
 
     # important methods:
 
@@ -322,7 +349,11 @@ class Pipe:
         """
         def closure(args, kwargs=None):
             return self(*args) if kwargs is None else self(*args, **kwargs)
-        return Pipe(closure)
+        return Pipe(
+            closure,
+            name=f'-{self.name}',
+            doc=f'{self.doc}\n\nWITH STAR EXPANSION',
+        )
 
     @cached_property
     def map(self):
@@ -331,7 +362,11 @@ class Pipe:
         >>> tuple(Pipe(lambda x: x**2).map.apply((1, 2, 3)))
         (1, 4, 9)
         """
-        return Pipe(partial(map, self))
+        return Pipe(
+            partial(map, self),
+            name=f'+{self.name}',
+            doc=f'{self.doc}\n\nMAPPED TO EACH ARGUMENT',
+        )
 
     def partial(self, *args, **kwargs):
         """get partial of this function (like functools.partial)
@@ -339,7 +374,12 @@ class Pipe:
         >>> Pipe(print).partial(sep=',')(1, 2, 3)
         1,2,3
         """
-        return Pipe(Arguments.get(*args, **kwargs).partial(self.func))
+        arguments = Arguments.get(*args, **kwargs)
+        return Pipe(
+            arguments.partial(self.func),
+            name=f'{self.name}.partial({arguments})' if arguments.kwargs else f'{self.name}[{arguments}]',
+            doc=f'{self.doc}\n\nWITH ARGUMENTS: {arguments}',
+        )
 
     def transpose(self, *indices):
         """rearrange (some of) the arguments to a function
@@ -385,7 +425,12 @@ class Pipe:
             args = (targs[i] for i in range(len(targs)))
             return self.func(*args, **kwargs)
 
-        return Pipe(closure)
+        idx_string = ', '.join(str(i) for i in indices)
+        return Pipe(
+            closure,
+            name=f'{self.name}.T({idx_string})',
+            doc=f'{self.doc}\n\nWITH ARGUMENT ORDER: {idx_string}',
+        )
 
     def T(self, *indices):
         return self.transpose(*indices)
@@ -408,9 +453,16 @@ class Pipe:
         >>> Pipe(str.upper).chain(str.split).apply('hello world')
         ['HELLO', 'WORLD']
         """
+        other = Pipe.as_pipe(other)
+
         def closure(*args, **kwargs):
-            return Pipe(other)(self(*args, **kwargs))
-        return Pipe(closure)
+            return other(self(*args, **kwargs))
+
+        return Pipe(
+            closure,
+            name=f'{self.name} & {other.name}',
+            doc=f'FIRST{indent(self.doc)}\nTHEN{indent(other.doc)}',
+        )
 
     @cached_property
     def with_context(self):
@@ -428,7 +480,11 @@ class Pipe:
         def closure(*args, **kwargs):
             with self.partial(*args, **kwargs) as p:
                 return p()
-        return Pipe(closure)
+        return Pipe(
+            closure,
+            name=f'~{self.name}',
+            doc=f'{self.doc}\n\nWITH EVERY CONTEXT MANAGER ENTERED',
+        )
 
     # operators:
 
@@ -544,6 +600,9 @@ class Pipe:
         return res
 
     # miscellaneous:
+
+    def __str__(self):
+        return self.name if self.name is not None else repr(self)
 
     def __repr__(self):
         return f'{__class__.__qualname__}({self.func})'
