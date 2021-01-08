@@ -613,7 +613,10 @@ class Pipe:
 
 class GetAttr(Pipe):
     def __getattr__(self, attr):
-        return self.partial(attr)
+        getter = self.partial(attr)
+        getter.__name__ = f'{self.name}.{attr}'
+        getter.__doc__ = f'get the .{attr} attribute of an object'
+        return getter
 
 
 @GetAttr
@@ -647,7 +650,11 @@ class To:
         hello
         world
         """
-        return Pipe(arg)
+        if isinstance(arg, Pipe):
+            return arg
+        as_pipe = Pipe(arg)
+        as_pipe.__name__ = f'to({as_pipe.name})'
+        return as_pipe
 
     def __getattr__(self, attr):
         r"""to.attr(), where to = To(), allows calling methods
@@ -666,7 +673,7 @@ class To:
         def closure(*args, **kwargs):
             *args, obj = args
             return getattr(obj, attr)(*args, **kwargs)
-        return Pipe(closure)
+        return Pipe(closure, name=f'to.{attr}', doc=f'run the .{attr} method of an object')
 
 
 to = To()
