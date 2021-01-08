@@ -548,27 +548,9 @@ class Pipe:
     def __repr__(self):
         return f'{__class__.__qualname__}({self.func})'
 
-    def __str__(self):
-        for attr in '__qualname__', '__name__':
-            if hasattr(self.func, attr):
-                return getattr(self.func, attr)
-        return str(self.func)
-
     def __iter__(self):
         raise TypeError(f"'{__class__.__qualname__}' object is not iterable")
 
-    def describe(self, fallback=str):
-        if isinstance(self.func, Pipe):
-            return f'[ {self.func.describe()} ]'
-        qualname = getattr(self.func, '__qualname__', '')
-        if 'Pipe.chain' in qualname and qualname.endswith('closure'):
-            funcs = tuple(cell.cell_contents for cell in self.func.__closure__)
-            return '->'.join(
-                func.describe() if hasattr(func, 'describe') else fallback(func)
-                for func in reversed(funcs)
-            )
-        else:
-            return fallback(self)
 
 class GetAttr(Pipe):
     def __getattr__(self, attr):
@@ -598,6 +580,7 @@ class To:
     >>> 'hello' | to(print)
     hello
     """
+
     def __call__(self, arg):
         r"""when called, to(), where to = To(), acts like Pipe()
 
