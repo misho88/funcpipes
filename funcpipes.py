@@ -225,7 +225,7 @@ import itertools
 
 def indent(text):
     import textwrap
-    return textwrap.indent(text, '\t')
+    return textwrap.indent(str(text), '\t')
 
 
 class Arguments:
@@ -254,16 +254,15 @@ class Arguments:
         self.args, self.kwargs = args, kwargs
 
     def __iter__(self):
-        """get at fields quickly
-
-        >>> args, kwargs = Arguments(1, 2, a=3, b=4)
-        >>> args
-        (1, 2)
-        >>> kwargs
-        {'a': 3, 'b': 4}
         """
-        yield self.args
-        yield self.kwargs
+
+        >>> a, b, c = Arguments(1, 2, 3)
+        >>> a, b, c
+        (1, 2, 3)
+        """
+        if self.kwargs:
+            raise ValueError('kwargs must be empty to iterate')
+        yield from self.args
 
     def __str__(self):
         """string representation
