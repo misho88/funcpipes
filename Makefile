@@ -1,3 +1,5 @@
+pull:
+	git pull
 install:
 	./setup.py install
 uninstall:
