@@ -329,6 +329,10 @@ class Pipe:
     def doc(self):
         return self.__doc__
 
+    def with_name(self, name):
+        """return the pipe with a new name"""
+        return Pipe(self.func, name=name, doc=self.doc)
+
     # important methods:
 
     def apply(self, *args, **kwargs):
