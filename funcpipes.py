@@ -685,36 +685,47 @@ repeat = itertools.repeat(Arguments())
 
 
 @Pipe
-def discard(obj):
-    if isinstance(obj, (str, bytes, bytearray)):
+def discard(*args, **kwargs):
+    if len(args) == 1 and not kwargs:
+        obj, = args
+        if isinstance(obj, (str, bytes, bytearray)):
+            return
+        if isinstance(obj, Mapping):
+            for v in obj.values():
+                discard(v)
+            return
+        if isinstance(obj, (Collection, Iterable)) and not isinstance(obj, range):
+            for item in obj:
+                discard(item)
+            return
         return
-    if isinstance(obj, Mapping):
-        for v in obj.values():
-            discard(v)
-        return
-    if isinstance(obj, (Collection, Iterable)) and not isinstance(obj, range):
-        for item in obj:
-            discard(item)
-        return
-    return
+    for v in args:
+        discard(v)
+    for v in kwargs.values():
+        discard(v)
 
 
 @Pipe
-def collect(obj):
-    if isinstance(obj, (str, bytes, bytearray)):
+def collect(*args, **kwargs):
+    if len(args) == 1 and not kwargs:
+        obj, = args
+        if isinstance(obj, (str, bytes, bytearray)):
+            return obj
+        if isinstance(obj, Mapping):
+            return type(obj)({ k: collect(v) for k, v in obj.items() })
+        if isinstance(obj, Collection) and not isinstance(obj, range):
+            return type(obj)(collect(item) for item in obj)
+        if isinstance(obj, Iterable):
+            return collect(tuple(obj))
         return obj
-    if isinstance(obj, Mapping):
-        return type(obj)({ k: collect(v) for k, v in obj.items() })
-    if isinstance(obj, Collection) and not isinstance(obj, range):
-        return type(obj)(collect(item) for item in obj)
-    if isinstance(obj, Iterable):
-        return collect(tuple(obj))
-    return obj
+    if not kwargs:
+        return tuple(collect(v) for v in args)
+    return tuple(collect(v) for v in args), { k: collect(v) for k, v in kwargs.items() }
 
 
 @Pipe
-def now(obj):
-    return collect(obj)
+def now(*args, **kwargs):
+    return collect(*args, **kwargs)
 now.collect = collect  # noqa: E305
 now.discard = discard  # noqa: E305
 
