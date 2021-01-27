@@ -208,8 +208,8 @@ exiting 3
 """
 
 __all__ = (
-    'Pipe', 'Arguments',
-    'pipe', 'get', 'to', 'discard', 'collect', 'now',
+    'Pipe', 'Arguments', 'Nothing',
+    'pipe', 'arguments', 'nothing', 'get', 'to', 'discard', 'collect', 'now',
     'repeat', 'ignore',
     'until', 'until_result', 'until_exception', 'until_condition',
     'pipify',
@@ -233,7 +233,7 @@ class Arguments:
 
     As far as I know, Python has no other way to capture the exact way a
     function is meant to be called, and it is important that this is distinct
-    from a tuple
+    from a tuple. On its own, this is more or less a "just" monad.
 
     To the user, it's useful to initizalize a pipeline:
     >>> Arguments(1,2,3) | to(print)
@@ -281,7 +281,7 @@ class Arguments:
         >>> repr(Arguments(1, 2, a=3, b=4))
         'Arguments(1, 2, a=3, b=4)'
         """
-        return f'{__class__.__qualname__}({str(self)})'
+        return f'{type(self).__qualname__}({str(self)})'
 
     def apply(self, func):
         return func(*self.args, **self.kwargs)
@@ -295,14 +295,24 @@ class Arguments:
     def __getitem__(self, func):
         return self.partial(func)
 
-    @staticmethod
-    def get(*args, **kwargs):
+    @classmethod
+    def get(cls, *args, **kwargs):
         for arg in args:
             if isinstance(arg, Arguments):
                 if len(args) != 1 or kwargs:
                     raise RuntimeError(f'{arg} must be passed on its own')
                 return arg
-        return Arguments(*args, **kwargs)
+        return cls(*args, **kwargs)
+
+
+class Nothing(Arguments):
+    """do nothing with a function
+
+    This is similar to a "nothing" monad, but it can be used to carry state
+    information through to the end of the pipeline if instantiated with such.
+    """
+    def apply(self, func):
+        return self
 
 
 class Pipe:
@@ -608,10 +618,10 @@ class Pipe:
         return self.name if self.name is not None else repr(self)
 
     def __repr__(self):
-        return f'{__class__.__qualname__}({self.func})'
+        return f'{type(self).__qualname__}({self.func})'
 
     def __iter__(self):
-        raise TypeError(f"'{__class__.__qualname__}' object is not iterable")
+        raise TypeError(f"'{type(self).__qualname__}' object is not iterable")
 
 
 class GetAttr(Pipe):
@@ -681,7 +691,9 @@ class To:
 
 to = To()
 pipe = Pipe()
-repeat = itertools.repeat(Arguments())
+arguments = Arguments()
+nothing = Nothing()
+repeat = itertools.repeat(arguments)
 
 
 @Pipe
