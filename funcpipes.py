@@ -211,7 +211,7 @@ __all__ = (
     'Pipe', 'Arguments', 'Nothing',
     'pipe', 'arguments', 'nothing', 'get', 'to', 'discard', 'collect', 'now',
     'repeat', 'ignore',
-    'until', 'until_result', 'until_exception', 'until_condition',
+    'until', 'until_result', 'until_exception', 'until_condition', 'until_count',
     'pipify',
 )
 
@@ -763,6 +763,11 @@ def until_exception(*args):
         yield from args[-1]
     except args[:-1]:
         pass
+
+
+@Pipe
+def until_count(count, iterable):
+    return (item for _, item in zip(range(count), iterable))
 
 
 @Pipe
