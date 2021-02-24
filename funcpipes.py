@@ -509,6 +509,16 @@ class Pipe:
         """
         return self.apply(*args, **kwargs)
 
+    def __or__(self, arg):  # arg | self
+        """apply the underlying function when the argument is also a pipe
+
+        >>> (pipe | pipe)(pipe)
+        Arguments(Pipe(<class '__main__.Arguments'>))
+        >>> (pipe | pipe)(pipe)(pipe)
+        Arguments(Pipe(<class '__main__.Arguments'>))
+        """
+        return arg.apply(self)
+
     def __ror__(self, arg):  # arg | self
         """apply the underlying function
 
