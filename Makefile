@@ -1,3 +1,7 @@
+GIT_BRANCH ?= "main"
+
+checkout:
+	git checkout $(GIT_BRANCH)
 pull:
 	git pull
 install:
