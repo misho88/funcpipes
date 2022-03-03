@@ -243,6 +243,7 @@ class Arguments:
     >>> Arguments(1,2,3) | Pipe() | Pipe() | to(print)
     1 2 3
     """
+
     __slots__ = 'args', 'kwargs'
 
     def __init__(self, *args, **kwargs):
