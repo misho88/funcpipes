@@ -219,7 +219,7 @@ __all__ = (
 from functools import partial, cached_property, wraps
 from contextlib import ExitStack
 from types import ModuleType
-from typing import Callable
+from typing import Callable, Optional
 from collections.abc import Iterable, Collection, Mapping
 import itertools
 
@@ -318,7 +318,7 @@ class Nothing(Arguments):
 
 
 class Pipe:
-    def __init__(self, func: Callable = Arguments, name: str | None = None, doc: str | None = None):
+    def __init__(self, func: Callable = Arguments, name: Optional[str] = None, doc: Optional[str] = None):
         if not callable(func):
             raise ValueError(f'{repr(func)} is not callable')
         self.__func__ = func
