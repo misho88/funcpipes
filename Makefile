@@ -1,3 +1,5 @@
+PYTHON_SITE=$(shell python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+MODULE=funcpipes.py
 GIT_BRANCH ?= "main"
 
 checkout:
@@ -5,7 +7,6 @@ checkout:
 pull:
 	git pull
 install:
-	./setup.py build
-	./setup.py install
+	install $(MODULE) $(PYTHON_SITE)
 uninstall:
-	pip3 uninstall funcpipes
+	rm -f $(PYTHON_SITE)/$(MODULE)
